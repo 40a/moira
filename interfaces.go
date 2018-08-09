@@ -10,6 +10,8 @@ import (
 type Database interface {
 	// SelfState
 	UpdateMetricsHeartbeat() error
+	UpdateMatchedMetricsHeartbeat() error
+	GetMatchedMetricsUpdatesCount() (int64, error)
 	GetMetricsUpdatesCount() (int64, error)
 	GetChecksUpdatesCount() (int64, error)
 	GetNotifierState() (string, error)

@@ -72,6 +72,10 @@ func (storage *PatternStorage) ProcessIncomingMetric(lineBytes []byte) *moira.Ma
 	}
 	if len(matched) > 0 {
 		storage.metrics.MatchingMetricsReceived.Inc(1)
+		if err := storage.database.UpdateMatchedMetricsHeartbeat(); err != nil {
+			storage.logger.Error("Can't update matched metrics counter. Setting Moira Notifier state to ERROR")
+			storage.database.SetNotifierState("ERROR")
+		}
 		return &moira.MatchedMetric{
 			Metric:             string(metric),
 			Patterns:           matched,
