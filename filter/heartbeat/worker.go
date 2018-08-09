@@ -12,6 +12,7 @@ import (
 
 const (
 	metricsMatchedCacheKey       = "metricsMatched"
+	metricsMatchedDeltaCacheKey  = "metricsMatchedDelta"
 	cacheCleanupInterval         = time.Minute * 5
 	cacheValueExpirationDuration = time.Minute
 )
@@ -63,14 +64,20 @@ func (worker *Worker) Start() {
 					worker.database.SetNotifierState("ERROR")
 				} else {
 					if dataBaseMatchedCount != 0 {
-						newMatchedCountPerInterval := worker.metrics.MatchingMetricsReceived.Count() - dataBaseMatchedCount
-						if previouslyMatchedPerInterval, found := worker.cache.Get(metricsMatchedCacheKey); found {
-							previouslyMatchedPerIntervalVal := previouslyMatchedPerInterval.(int64)
-							if newMatchedCountPerInterval < 0.5*previouslyMatchedPerIntervalVal {
-								worker.logger.Errorf("Found 50% less matched metrics than minute ago. Previously: %d. Now: %d", previouslyMatchedPerIntervalVal, newMatchedCountPerInterval)
+						if previouslyMatched, found := worker.cache.Get(metricsMatchedCacheKey); found {
+							previouslyMatchedVal := previouslyMatched.(int64)
+							worker.cache.Set(metricsMatchedCacheKey, previouslyMatchedVal, cacheValueExpirationDuration)
+							
+							if previouslyMatchedDelta, found := worker.cache.Get(metricsMatchedDeltaCacheKey); found {
+								previouslyMatchedDeltaVal := previouslyMatchedDelta.(int64)
+								worker.cache.Set(metricsMatchedDeltaCacheKey, previouslyMatchedVal, cacheValueExpirationDuration)
+								
+								newMatchedDeltaVal := dataBaseMatchedCount - previouslyMatchedVal
+								if newMatchedDeltaVal < 0.5*previouslyMatchedDeltaVal {
+								worker.logger.Errorf("Found 50% less matched metrics than minute ago. Previously: %d. Now: %d. Setting Moira Notifier state to ERROR", previouslyMatchedDeltaVal, newMatchedDeltaVal)
+								worker.database.SetNotifierState("ERROR")
 							}
 						}
-						worker.cache.Set(metricsMatchedCacheKey, newMatchedCountPerInterval, cacheValueExpirationDuration)
 					}
 				}
 			}
