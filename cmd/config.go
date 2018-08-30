@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gosexy/to"
+	"github.com/kelseyhightower/envconfig"
 	"github.com/moira-alert/moira/remote"
 	"gopkg.in/yaml.v2"
 
@@ -18,9 +19,9 @@ import (
 // use Host and Port fields otherwise.
 type RedisConfig struct {
 	// Redis Sentinel cluster name
-	MasterName string `yaml:"master_name"`
+	MasterName string `yaml:"master_name" split_words:"true"`
 	// Redis Sentinel address list, format: {host1_name:port};{ip:port}
-	SentinelAddrs string `yaml:"sentinel_addrs"`
+	SentinelAddrs string `yaml:"sentinel_addrs" split_words:"true"`
 	// Redis node ip-address or host name
 	Host string `yaml:"host"`
 	// Redis node port
@@ -45,7 +46,7 @@ type GraphiteConfig struct {
 	// If true, graphite sender will be enabled.
 	Enabled bool `yaml:"enabled"`
 	// If true, runtime stats will be captured and sent to graphite. Note: It takes to call stoptheworld() with configured "graphite.interval" to capture runtime stats (https://golang.org/src/runtime/mstats.go)
-	RuntimeStats bool `yaml:"runtime_stats"`
+	RuntimeStats bool `yaml:"runtime_stats" split_words:"true"`
 	// Graphite relay URI, format: ip:port
 	URI string `yaml:"uri"`
 	// Moira metrics prefix. Use 'prefix: {hostname}' to use hostname autoresolver.
@@ -67,8 +68,8 @@ func (graphiteConfig *GraphiteConfig) GetSettings() graphite.Config {
 
 // LoggerConfig is logger settings structure that initialises at the start of moira
 type LoggerConfig struct {
-	LogFile  string `yaml:"log_file"`
-	LogLevel string `yaml:"log_level"`
+	LogFile  string `yaml:"log_file" split_words:"true"`
+	LogLevel string `yaml:"log_level" split_words:"true"`
 }
 
 // ProfilerConfig is pprof settings structure that initialises at the start of moira
@@ -82,7 +83,7 @@ type RemoteConfig struct {
 	// graphite url e.g http://graphite/render
 	URL string `yaml:"url"`
 	// Min period to perform triggers re-check. Note: Reducing of this value leads to increasing of CPU and memory usage values
-	CheckInterval string `yaml:"check_interval"`
+	CheckInterval string `yaml:"check_interval" split_words:"true"`
 	// Timeout for remote requests
 	Timeout string `yaml:"timeout"`
 	// Username for basic auth
@@ -116,6 +117,11 @@ func ReadConfig(configFileName string, config interface{}) error {
 		return fmt.Errorf("can't parse config file [%s] [%s]", configFileName, err.Error())
 	}
 	return nil
+}
+
+// ReadConfigFromEnv reads config from ENV variables and returns error if didn't succeed
+func ReadConfigFromEnv(configPrefix string, config interface{}) error {
+	return envconfig.Process(configPrefix, &config)
 }
 
 // PrintConfig prints config to stdout

@@ -21,12 +21,16 @@ import (
 	"github.com/moira-alert/moira/metrics/graphite/go-metrics"
 )
 
-const serviceName = "api"
+const (
+	serviceName  = "api"
+	envAppPrefix = "moira_api"
+)
 
 var (
-	configFileName         = flag.String("config", "/etc/moira/api.yml", "Path to configuration file")
-	printVersion           = flag.Bool("version", false, "Print version and exit")
-	printDefaultConfigFlag = flag.Bool("default-config", false, "Print default config and exit")
+	configFileName          = flag.String("config", "/etc/moira/api.yml", "Path to configuration file")
+	printVersion            = flag.Bool("version", false, "Print version and exit")
+	printDefaultConfigFlag  = flag.Bool("default-config", false, "Print default config and exit")
+	useEnvironmentVariables = flag.Bool("use-env", false, "Use environment variables instead of config file")
 )
 
 // Moira api bin version
@@ -55,7 +59,17 @@ func main() {
 	err := cmd.ReadConfig(*configFileName, &config)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can not read settings: %s\n", err.Error())
-		os.Exit(1)
+		if !*useEnvironmentVariables {
+			os.Exit(1)
+		}
+	}
+
+	if *useEnvironmentVariables {
+		err := cmd.ReadConfigFromEnv(envAppPrefix, &config)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Can not read settings from environment: %s\n", err.Error())
+			os.Exit(1)
+		}
 	}
 
 	apiConfig := config.API.getSettings()
