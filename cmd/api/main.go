@@ -65,9 +65,9 @@ func main() {
 	}
 
 	if *useEnvironmentVariables {
-		err := cmd.ReadConfigFromEnv(envAppPrefix, &config)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Can not read settings from environment: %s\n", err.Error())
+		err2 := cmd.ReadConfigFromEnv(envAppPrefix, &config)
+		if err2 != nil {
+			fmt.Fprintf(os.Stderr, "Can not read settings from environment: %s\n", err2.Error())
 			os.Exit(1)
 		}
 	}
