@@ -22,4 +22,4 @@ COPY --from=builder /go/src/github.com/moira-alert/moira/build/api /usr/bin/api
 
 EXPOSE 8081 8081
 
-ENTRYPOINT ["/usr/bin/api"]
+ENTRYPOINT ["/usr/bin/api", "--use-env"]

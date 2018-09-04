@@ -121,7 +121,7 @@ func ReadConfig(configFileName string, config interface{}) error {
 
 // ReadConfigFromEnv reads config from ENV variables and returns error if didn't succeed
 func ReadConfigFromEnv(configPrefix string, config interface{}) error {
-	return envconfig.Process(configPrefix, &config)
+	return envconfig.Process(configPrefix, config)
 }
 
 // PrintConfig prints config to stdout
