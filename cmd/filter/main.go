@@ -20,13 +20,17 @@ import (
 	"github.com/moira-alert/moira/metrics/graphite/go-metrics"
 )
 
-const serviceName = "filter"
+const (
+	serviceName  = "filter"
+	envAppPrefix = "moira_filter"
+)
 
 var (
-	logger                 moira.Logger
-	configFileName         = flag.String("config", "/etc/moira/filter.yml", "path config file")
-	printVersion           = flag.Bool("version", false, "Print version and exit")
-	printDefaultConfigFlag = flag.Bool("default-config", false, "Print default config and exit")
+	logger                  moira.Logger
+	configFileName          = flag.String("config", "/etc/moira/filter.yml", "path config file")
+	printVersion            = flag.Bool("version", false, "Print version and exit")
+	printDefaultConfigFlag  = flag.Bool("default-config", false, "Print default config and exit")
+	useEnvironmentVariables = flag.Bool("use-env", false, "Use environment variables instead of config file")
 )
 
 // Moira filter bin version
@@ -55,7 +59,17 @@ func main() {
 	err := cmd.ReadConfig(*configFileName, &config)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can not read settings: %s\n", err.Error())
-		os.Exit(1)
+		if !*useEnvironmentVariables {
+			os.Exit(1)
+		}
+	}
+
+	if *useEnvironmentVariables {
+		err2 := cmd.ReadConfigFromEnv(envAppPrefix, &config)
+		if err2 != nil {
+			fmt.Fprintf(os.Stderr, "Can not read settings from environment: %s\n", err2.Error())
+			os.Exit(1)
+		}
 	}
 
 	logger, err = logging.ConfigureLog(config.Logger.LogFile, config.Logger.LogLevel, serviceName)

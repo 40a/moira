@@ -22,4 +22,4 @@ COPY --from=builder /go/src/github.com/moira-alert/moira/build/filter /usr/bin/f
 
 EXPOSE 2003 2003
 
-ENTRYPOINT ["/usr/bin/filter"]
+ENTRYPOINT ["/usr/bin/filter", "--use-env"]

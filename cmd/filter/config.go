@@ -17,14 +17,14 @@ type filterConfig struct {
 	Listen string `yaml:"listen"`
 	// Retentions config file path.
 	// Simply use your original storage-schemas.conf or create new if you're using Moira without existing Graphite installation.
-	RetentionConfig string `yaml:"retention_config"`
+	RetentionConfig string `yaml:"retention_config" split_words:"true"`
 	// Number of metrics to cache before checking them.
 	// Note: As this value increases, Redis CPU usage decreases.
 	// Normally, this value must be an order of magnitude less than graphite.prefix.filter.recevied.matching.count | nonNegativeDerivative() | scaleToSeconds(1)
 	// For example: with 100 matching metrics, set cache_capacity to 10. With 1000 matching metrics, increase cache_capacity up to 100.
-	CacheCapacity int `yaml:"cache_capacity"`
+	CacheCapacity int `yaml:"cache_capacity" split_words:"true"`
 	// Max concurrent metric matchers to run. Equals to the number of processor cores found on Moira host by default or when variable is defined as 0.
-	MaxParallelMatches int `yaml:"max_parallel_matches"`
+	MaxParallelMatches int `yaml:"max_parallel_matches" split_words:"true"`
 }
 
 func getDefault() config {
