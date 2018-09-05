@@ -144,6 +144,7 @@ type Trigger struct {
 	PythonExpression *string       `json:"python_expression,omitempty"`
 	Patterns         []string      `json:"patterns"`
 	IsRemote         bool          `json:"is_remote"`
+	MuteNewMetrics   bool          `json:"mute_new_metrics"`
 }
 
 // TriggerCheck represent trigger data with last check data and check timestamp
@@ -155,14 +156,15 @@ type TriggerCheck struct {
 
 // CheckData represent last trigger check data
 type CheckData struct {
-	Metrics         map[string]MetricState `json:"metrics"`
-	Score           int64                  `json:"score"`
-	State           string                 `json:"state"`
-	Timestamp       int64                  `json:"timestamp,omitempty"`
-	EventTimestamp  int64                  `json:"event_timestamp,omitempty"`
-	Suppressed      bool                   `json:"suppressed,omitempty"`
-	SuppressedState string                 `json:"suppressed_state,omitempty"`
-	Message         string                 `json:"msg,omitempty"`
+	Metrics                 map[string]MetricState `json:"metrics"`
+	Score                   int64                  `json:"score"`
+	State                   string                 `json:"state"`
+	Timestamp               int64                  `json:"timestamp,omitempty"`
+	EventTimestamp          int64                  `json:"event_timestamp,omitempty"`
+	TriggerAlreadyProcessed bool                   `json:"trigger_already_processed"`
+	Suppressed              bool                   `json:"suppressed,omitempty"`
+	SuppressedState         string                 `json:"suppressed_state,omitempty"`
+	Message                 string                 `json:"msg,omitempty"`
 }
 
 // MetricState represent metric state data for given timestamp
@@ -227,15 +229,19 @@ func (schedule *ScheduleData) IsScheduleAllows(ts int64) bool {
 	if schedule == nil {
 		return true
 	}
+	endOffset, startOffset := schedule.EndOffset, schedule.StartOffset
+	if schedule.EndOffset < schedule.StartOffset {
+		endOffset = schedule.EndOffset + 24*60
+	}
 	timestamp := ts - ts%60 - schedule.TimezoneOffset*60
 	date := time.Unix(timestamp, 0).UTC()
 	if !schedule.Days[int(date.Weekday()+6)%7].Enabled {
 		return false
 	}
 	dayStart := time.Unix(timestamp-timestamp%(24*3600), 0).UTC()
-	startDayTime := dayStart.Add(time.Duration(schedule.StartOffset) * time.Minute)
-	endDayTime := dayStart.Add(time.Duration(schedule.EndOffset) * time.Minute)
-	if schedule.EndOffset < 24*60 {
+	startDayTime := dayStart.Add(time.Duration(startOffset) * time.Minute)
+	endDayTime := dayStart.Add(time.Duration(endOffset) * time.Minute)
+	if endOffset < 24*60 {
 		if date.After(startDayTime) && date.Before(endDayTime) {
 			return true
 		}
@@ -253,15 +259,29 @@ func (eventData NotificationEvent) String() string {
 }
 
 // GetOrCreateMetricState gets metric state from check data or create new if CheckData has no state for given metric
-func (checkData *CheckData) GetOrCreateMetricState(metric string, emptyTimestampValue int64) MetricState {
+func (checkData *CheckData) GetOrCreateMetricState(metric string, emptyTimestampValue int64, muteNewMetric bool) MetricState {
 	_, ok := checkData.Metrics[metric]
 	if !ok {
-		checkData.Metrics[metric] = MetricState{
-			State:     "NODATA",
-			Timestamp: emptyTimestampValue,
-		}
+		checkData.Metrics[metric] = createEmptyMetricState(emptyTimestampValue, !muteNewMetric)
 	}
 	return checkData.Metrics[metric]
+}
+
+func createEmptyMetricState(defaultTimestampValue int64, firstStateIsNodata bool) MetricState {
+	if firstStateIsNodata {
+		return MetricState{
+			State:     "NODATA",
+			Timestamp: defaultTimestampValue,
+		}
+	}
+
+	unixNow := time.Now().Unix()
+
+	return MetricState{
+		State:          "OK",
+		Timestamp:      unixNow,
+		EventTimestamp: unixNow,
+	}
 }
 
 // GetCheckPoint gets check point for given MetricState
@@ -316,7 +336,7 @@ func (subscription *SubscriptionData) MustIgnore(eventData *NotificationEvent) b
 		if newStateWeight, ok := eventStateWeight[eventData.State]; ok {
 			delta := newStateWeight - oldStateWeight
 			if delta < 0 {
-				if delta == -1 && (subscription.IgnoreRecoverings || subscription.IgnoreWarnings){
+				if delta == -1 && (subscription.IgnoreRecoverings || subscription.IgnoreWarnings) {
 					return true
 				}
 				return subscription.IgnoreRecoverings

@@ -480,12 +480,13 @@ func TestCheckErrors(t *testing.T) {
 			}
 
 			lastCheck := moira.CheckData{
-				Metrics:        triggerChecker.lastCheck.Metrics,
-				State:          EXCEPTION,
-				Timestamp:      triggerChecker.Until,
-				EventTimestamp: triggerChecker.Until,
-				Score:          100000,
-				Message:        messageException,
+				Metrics:                 triggerChecker.lastCheck.Metrics,
+				State:                   EXCEPTION,
+				Timestamp:               triggerChecker.Until,
+				EventTimestamp:          triggerChecker.Until,
+				Score:                   100000,
+				Message:                 messageException,
+				TriggerAlreadyProcessed: true,
 			}
 
 			dataBase.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
@@ -500,6 +501,7 @@ func TestCheckErrors(t *testing.T) {
 		Convey("Switch state to OK. Event should be created", func() {
 			triggerChecker.lastCheck.State = EXCEPTION
 			triggerChecker.lastCheck.EventTimestamp = 67
+			triggerChecker.lastCheck.TriggerAlreadyProcessed = true
 			lastValue := float64(4)
 			message := ""
 
@@ -529,6 +531,7 @@ func TestCheckErrors(t *testing.T) {
 				Timestamp:      triggerChecker.Until,
 				EventTimestamp: triggerChecker.Until,
 				Score:          0,
+				TriggerAlreadyProcessed: true,
 			}
 
 			dataBase.EXPECT().RemoveMetricsValues([]string{metric}, int64(57)).Return(nil)
@@ -540,6 +543,100 @@ func TestCheckErrors(t *testing.T) {
 			err := triggerChecker.Check()
 			So(err, ShouldBeNil)
 		})
+	})
+}
+
+func TestIgnoreNodataToOk(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	dataBase := mock_moira_alert.NewMockDatabase(mockCtrl)
+	logger, _ := logging.GetLogger("Test")
+	logging.SetLevel(logging.INFO, "Test")
+	defer mockCtrl.Finish()
+
+	var retention int64 = 10
+	var warnValue float64 = 10
+	var errValue float64 = 20
+	pattern := "super.puper.pattern"
+	metric := "super.puper.metric"
+	var ttl int64 = 600
+	lastCheck := moira.CheckData{
+		Metrics:   make(map[string]moira.MetricState),
+		State:     NODATA,
+		Timestamp: 66,
+	}
+	metricValues := []*moira.MetricValue{
+		{
+			RetentionTimestamp: 3620,
+			Timestamp:          3623,
+			Value:              0,
+		},
+		{
+			RetentionTimestamp: 3630,
+			Timestamp:          3633,
+			Value:              1,
+		},
+		{
+			RetentionTimestamp: 3640,
+			Timestamp:          3643,
+			Value:              2,
+		},
+		{
+			RetentionTimestamp: 3650,
+			Timestamp:          3653,
+			Value:              3,
+		},
+		{
+			RetentionTimestamp: 3660,
+			Timestamp:          3663,
+			Value:              4,
+		},
+	}
+	dataList := map[string][]*moira.MetricValue{
+		metric: metricValues,
+	}
+	triggerChecker := TriggerChecker{
+		TriggerID: "SuperId",
+		Database:  dataBase,
+		Logger:    logger,
+		Config: &Config{
+			MetricsTTLSeconds: 3600,
+		},
+		From:     3617,
+		Until:    3667,
+		ttl:      ttl,
+		ttlState: NODATA,
+		trigger: &moira.Trigger{
+			ErrorValue:  &errValue,
+			WarnValue:   &warnValue,
+			TriggerType: moira.RisingTrigger,
+			Targets:     []string{pattern},
+			Patterns:    []string{pattern},
+		},
+		lastCheck: &lastCheck,
+	}
+
+	Convey("First Event, NODATA - OK is ignored", t, func() {
+		triggerChecker.trigger.MuteNewMetrics = true
+		dataBase.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
+		dataBase.EXPECT().GetMetricRetention(metric).Return(retention, nil)
+		dataBase.EXPECT().GetMetricsValues([]string{metric}, triggerChecker.From, triggerChecker.Until).Return(dataList, nil)
+		dataBase.EXPECT().RemoveMetricsValues([]string{metric}, triggerChecker.Until-triggerChecker.Config.MetricsTTLSeconds)
+		checkData, err := triggerChecker.handleMetricsCheck()
+		So(err, ShouldBeNil)
+		So(checkData, ShouldResemble, moira.CheckData{
+			Metrics: map[string]moira.MetricState{
+				metric: {
+					Timestamp:      time.Now().Unix(),
+					EventTimestamp: time.Now().Unix(),
+					State:          OK,
+					Value:          nil,
+				},
+			},
+			Timestamp: triggerChecker.Until,
+			State:     NODATA,
+			Score:     0,
+		})
+		mockCtrl.Finish()
 	})
 }
 
@@ -731,6 +828,7 @@ func TestHandleTrigger(t *testing.T) {
 			Timestamp: triggerChecker.Until,
 			State:     OK,
 			Score:     0,
+			TriggerAlreadyProcessed: true,
 		})
 		mockCtrl.Finish()
 	})
@@ -810,6 +908,7 @@ func TestHandleTrigger(t *testing.T) {
 			Timestamp: triggerChecker.Until,
 			State:     OK,
 			Score:     0,
+			TriggerAlreadyProcessed: true,
 		})
 		mockCtrl.Finish()
 	})
@@ -837,9 +936,10 @@ func TestHandleErrorCheck(t *testing.T) {
 				},
 			}
 			checkData := moira.CheckData{
-				State:     NODATA,
-				Timestamp: time.Now().Unix(),
-				Message:   "Trigger has no metrics, check your target",
+				State:                   NODATA,
+				Timestamp:               time.Now().Unix(),
+				Message:                 "Trigger has no metrics, check your target",
+				TriggerAlreadyProcessed: true,
 			}
 			actual, err := triggerChecker.handleTriggerCheck(checkData, ErrTriggerHasNoTimeSeries{})
 			So(err, ShouldBeNil)
@@ -857,6 +957,7 @@ func TestHandleErrorCheck(t *testing.T) {
 				lastCheck: &moira.CheckData{
 					Timestamp: 0,
 					State:     NODATA,
+					TriggerAlreadyProcessed: true,
 				},
 			}
 			err1 := "This metric has been in bad state for more than 24 hours - please, fix."
@@ -876,10 +977,11 @@ func TestHandleErrorCheck(t *testing.T) {
 			dataBase.EXPECT().PushNotificationEvent(event, true).Return(nil)
 			actual, err := triggerChecker.handleTriggerCheck(checkData, ErrTriggerHasNoTimeSeries{})
 			expected := moira.CheckData{
-				State:          NODATA,
-				Timestamp:      checkData.Timestamp,
-				EventTimestamp: checkData.Timestamp,
-				Message:        "Trigger has no metrics, check your target",
+				State:                   NODATA,
+				Timestamp:               checkData.Timestamp,
+				EventTimestamp:          checkData.Timestamp,
+				Message:                 "Trigger has no metrics, check your target",
+				TriggerAlreadyProcessed: true,
 			}
 			So(err, ShouldBeNil)
 			So(actual, ShouldResemble, expected)
@@ -898,6 +1000,7 @@ func TestHandleErrorCheck(t *testing.T) {
 			lastCheck: &moira.CheckData{
 				Timestamp: time.Now().Unix(),
 				State:     OK,
+				TriggerAlreadyProcessed: true,
 			},
 		}
 		checkData := moira.CheckData{
@@ -908,10 +1011,11 @@ func TestHandleErrorCheck(t *testing.T) {
 		dataBase.EXPECT().PushNotificationEvent(gomock.Any(), true).Return(nil)
 		actual, err := triggerChecker.handleTriggerCheck(checkData, ErrTriggerHasOnlyWildcards{})
 		expected := moira.CheckData{
-			State:          ERROR,
-			Timestamp:      checkData.Timestamp,
-			EventTimestamp: checkData.Timestamp,
-			Message:        "Trigger never received metrics",
+			State:                   ERROR,
+			Timestamp:               checkData.Timestamp,
+			EventTimestamp:          checkData.Timestamp,
+			Message:                 "Trigger never received metrics",
+			TriggerAlreadyProcessed: true,
 		}
 		So(err, ShouldBeNil)
 		So(actual, ShouldResemble, expected)
@@ -929,22 +1033,25 @@ func TestHandleErrorCheck(t *testing.T) {
 			lastCheck: &moira.CheckData{
 				Timestamp: time.Now().Unix(),
 				State:     OK,
+				TriggerAlreadyProcessed: true,
 			},
 		}
 		checkData := moira.CheckData{
 			Metrics: map[string]moira.MetricState{
 				"123": {},
 			},
-			State:     OK,
-			Timestamp: time.Now().Unix(),
+			State:                   OK,
+			Timestamp:               time.Now().Unix(),
+			TriggerAlreadyProcessed: true,
 		}
 
 		actual, err := triggerChecker.handleTriggerCheck(checkData, ErrTriggerHasOnlyWildcards{})
 		expected := moira.CheckData{
-			Metrics:        checkData.Metrics,
-			State:          OK,
-			Timestamp:      checkData.Timestamp,
-			EventTimestamp: checkData.Timestamp,
+			Metrics:                 checkData.Metrics,
+			State:                   OK,
+			Timestamp:               checkData.Timestamp,
+			EventTimestamp:          checkData.Timestamp,
+			TriggerAlreadyProcessed: true,
 		}
 		So(err, ShouldBeNil)
 		So(actual, ShouldResemble, expected)
@@ -961,21 +1068,24 @@ func TestHandleErrorCheck(t *testing.T) {
 			lastCheck: &moira.CheckData{
 				Timestamp: time.Now().Unix(),
 				State:     OK,
+				TriggerAlreadyProcessed: true,
 			},
 		}
 		checkData := moira.CheckData{
-			Metrics:   map[string]moira.MetricState{},
-			State:     OK,
-			Timestamp: time.Now().Unix(),
+			Metrics:                 map[string]moira.MetricState{},
+			State:                   OK,
+			Timestamp:               time.Now().Unix(),
+			TriggerAlreadyProcessed: true,
 		}
 
 		actual, err := triggerChecker.handleTriggerCheck(checkData, ErrTriggerHasOnlyWildcards{})
 		expected := moira.CheckData{
-			Metrics:        checkData.Metrics,
-			State:          OK,
-			Timestamp:      checkData.Timestamp,
-			EventTimestamp: checkData.Timestamp,
-			Message:        "Trigger never received metrics",
+			Metrics:                 checkData.Metrics,
+			State:                   OK,
+			Timestamp:               checkData.Timestamp,
+			EventTimestamp:          checkData.Timestamp,
+			Message:                 "Trigger never received metrics",
+			TriggerAlreadyProcessed: true,
 		}
 		So(err, ShouldBeNil)
 		So(actual, ShouldResemble, expected)
@@ -1025,6 +1135,7 @@ func TestHandleErrorCheck(t *testing.T) {
 			lastCheck: &moira.CheckData{
 				Timestamp: time.Now().Unix(),
 				State:     OK,
+				TriggerAlreadyProcessed: true,
 			},
 		}
 		checkData := moira.CheckData{
@@ -1036,10 +1147,11 @@ func TestHandleErrorCheck(t *testing.T) {
 
 		actual, err := triggerChecker.handleTriggerCheck(checkData, target.ErrUnknownFunction{FuncName: "123"})
 		expected := moira.CheckData{
-			State:          EXCEPTION,
-			Timestamp:      checkData.Timestamp,
-			EventTimestamp: checkData.Timestamp,
-			Message:        "Unknown graphite function: \"123\"",
+			State:                   EXCEPTION,
+			Timestamp:               checkData.Timestamp,
+			EventTimestamp:          checkData.Timestamp,
+			Message:                 "Unknown graphite function: \"123\"",
+			TriggerAlreadyProcessed: true,
 		}
 		So(err, ShouldBeNil)
 		So(actual, ShouldResemble, expected)
@@ -1068,10 +1180,11 @@ func TestHandleErrorCheck(t *testing.T) {
 
 		actual, err := triggerChecker.handleTriggerCheck(checkData, ErrTriggerHasSameTimeSeriesNames{names: []string{"first", "second"}})
 		expected := moira.CheckData{
-			State:          ERROR,
-			Timestamp:      checkData.Timestamp,
-			EventTimestamp: checkData.Timestamp,
-			Message:        "Trigger has same timeseries names: first, second",
+			State:                   ERROR,
+			Timestamp:               checkData.Timestamp,
+			EventTimestamp:          checkData.Timestamp,
+			Message:                 "Trigger has same timeseries names: first, second",
+			TriggerAlreadyProcessed: true,
 		}
 		So(err, ShouldBeNil)
 		So(actual, ShouldResemble, expected)
@@ -1103,10 +1216,11 @@ func TestHandleErrorCheck(t *testing.T) {
 
 		actual, err := triggerChecker.handleTriggerCheck(checkData, ErrWrongTriggerTargets([]int{2}))
 		expected := moira.CheckData{
-			State:          ERROR,
-			Timestamp:      checkData.Timestamp,
-			EventTimestamp: checkData.Timestamp,
-			Message:        "Target t2 has more than one timeseries",
+			State:                   ERROR,
+			Timestamp:               checkData.Timestamp,
+			EventTimestamp:          checkData.Timestamp,
+			Message:                 "Target t2 has more than one timeseries",
+			TriggerAlreadyProcessed: true,
 		}
 		So(err, ShouldBeNil)
 		So(actual, ShouldResemble, expected)
