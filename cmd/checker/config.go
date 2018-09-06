@@ -17,17 +17,17 @@ type config struct {
 
 type checkerConfig struct {
 	// Period for every trigger to perform forced check on
-	NoDataCheckInterval string `yaml:"nodata_check_interval"`
+	NoDataCheckInterval string `yaml:"nodata_check_interval" split_words:"true"`
 	// Period for every trigger to cancel forced check (earlier than 'NoDataCheckInterval') if no metrics were received
-	StopCheckingInterval string `yaml:"stop_checking_interval"`
+	StopCheckingInterval string `yaml:"stop_checking_interval" split_words:"true"`
 	// Min period to perform triggers re-check. Note: Reducing of this value leads to increasing of CPU and memory usage values
-	CheckInterval string `yaml:"check_interval"`
+	CheckInterval string `yaml:"check_interval" split_words:"true"`
 	// Time interval to store metrics. Note: Increasing of this value leads to increasing of Redis memory consumption value
-	MetricsTTL string `yaml:"metrics_ttl"`
+	MetricsTTL string `yaml:"metrics_ttl" split_words:"true"`
 	// Max concurrent checkers to run. Equals to the number of processor cores found on Moira host by default or when variable is defined as 0.
-	MaxParallelChecks int `yaml:"max_parallel_checks"`
+	MaxParallelChecks int `yaml:"max_parallel_checks" split_words:"true"`
 	// Max concurrent remote checkers to run. Equals to the number of processor cores found on Moira host by default or when variable is defined as 0.
-	MaxParallelRemoteChecks int `yaml:"max_parallel_remote_checks"`
+	MaxParallelRemoteChecks int `yaml:"max_parallel_remote_checks" split_words:"true"`
 }
 
 func (config *checkerConfig) getSettings() *checker.Config {
