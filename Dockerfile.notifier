@@ -21,4 +21,4 @@ COPY pkg/notifier/fancy-template.html /etc/moira/fancy-template.html
 COPY --from=builder /go/src/github.com/moira-alert/moira/build/notifier /usr/bin/notifier
 COPY --from=builder /usr/local/go/lib/time/zoneinfo.zip /usr/local/go/lib/time/
 
-ENTRYPOINT ["/usr/bin/notifier"]
+ENTRYPOINT ["/usr/bin/notifier", "--use-env"]
