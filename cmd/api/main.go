@@ -80,9 +80,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	configFile, err := getWebConfigBytes(config.API.WebConfigPath)
-	if err != nil {
-		logger.Warningf("Failed to read web config file by path '%s', method 'api/config' will be return 404, error: %s'", config.API.WebConfigPath, err.Error())
+	var configFile []byte
+
+	if *useEnvironmentVariables {
+		webConfigStr := os.Getenv("MOIRA_API_WEB_CONFIG")
+		if webConfigStr != "" {
+			configFile = []byte(webConfigStr)
+		}
+	}
+
+	if len(configFile) == 0 {
+		configFile, err = getWebConfigBytes(config.API.WebConfigPath)
+		if err != nil {
+			logger.Warningf("Failed to read web config file by path '%s', method 'api/config' will be return 404, error: %s'", config.API.WebConfigPath, err.Error())
+		}
 	}
 
 	if config.Pprof.Listen != "" {
