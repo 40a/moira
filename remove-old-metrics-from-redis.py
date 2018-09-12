@@ -78,3 +78,6 @@ Number of bad metrics scores: {1}""".format(len(bad_scores), bad_scores_count))
     print("""
 ===================
 Total removed: {0}""".format(total_removed))
+
+if __name__ == '__main__':
+    main("all", need_to_remove=True)
