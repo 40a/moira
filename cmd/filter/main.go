@@ -126,7 +126,9 @@ func main() {
 
 	// Start metrics matcher
 	cacheCapacity := config.Filter.CacheCapacity
-	metricsMatcher := matchedmetrics.NewMetricsMatcher(cacheMetrics, logger, database, cacheStorage, cacheCapacity)
+	metricsTTL := getMetricsTtlSeconds(config.Filter.MetricsTTL)
+
+	metricsMatcher := matchedmetrics.NewMetricsMatcher(cacheMetrics, logger, database, cacheStorage, cacheCapacity, metricsTTL)
 	metricsMatcher.Start(metricsChan)
 	defer metricsMatcher.Wait()  // First stop listener
 	defer stopListener(listener) // Then waiting for metrics matcher handle all received events

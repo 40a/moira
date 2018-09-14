@@ -91,13 +91,13 @@ func (connector *DbConnector) getMetricRetention(metric string) (int64, error) {
 }
 
 // SaveMetrics saves new metrics
-func (connector *DbConnector) SaveMetrics(metrics map[string]*moira.MatchedMetric) error {
+func (connector *DbConnector) SaveMetrics(metrics map[string]*moira.MatchedMetric, ttl int) error {
 	c := connector.pool.Get()
 	defer c.Close()
 	for _, metric := range metrics {
 		metricValue := fmt.Sprintf("%v %v", metric.Timestamp, metric.Value)
 		c.Send("ZADD", metricDataKey(metric.Metric), metric.RetentionTimestamp, metricValue)
-		c.Send("EXPIRE", metricDataKey(metric.Metric), metricsTTLinSeconds)
+		c.Send("EXPIRE", metricDataKey(metric.Metric), ttl)
 
 		if err := connector.retentionSavingCache.Add(metric.Metric, true, cache.DefaultExpiration); err == nil {
 			c.Send("SET", metricRetentionKey(metric.Metric), metric.Retention)
@@ -249,8 +249,6 @@ func (connector *DbConnector) needRemoveMetrics(metric string) bool {
 	err := connector.metricsCache.Add(metric, true, 0)
 	return err == nil
 }
-
-const metricsTTLinSeconds = 3600 * 24 * 7
 
 var patternsListKey = "moira-pattern-list"
 var metricEventKey = "metric-event"

@@ -16,17 +16,19 @@ type MetricsMatcher struct {
 	database      moira.Database
 	cacheStorage  *filter.Storage
 	cacheCapacity int
+	metricsTTL    int
 	waitGroup     *sync.WaitGroup
 }
 
 // NewMetricsMatcher creates new MetricsMatcher
-func NewMetricsMatcher(metrics *graphite.FilterMetrics, logger moira.Logger, database moira.Database, cacheStorage *filter.Storage, cacheCapacity int) *MetricsMatcher {
+func NewMetricsMatcher(metrics *graphite.FilterMetrics, logger moira.Logger, database moira.Database, cacheStorage *filter.Storage, cacheCapacity, metricsTTL int) *MetricsMatcher {
 	return &MetricsMatcher{
 		metrics:       metrics,
 		logger:        logger,
 		database:      database,
 		cacheStorage:  cacheStorage,
 		cacheCapacity: cacheCapacity,
+		metricsTTL:    metricsTTL,
 		waitGroup:     &sync.WaitGroup{},
 	}
 }
@@ -69,7 +71,7 @@ func (matcher *MetricsMatcher) Wait() {
 }
 
 func (matcher *MetricsMatcher) save(buffer map[string]*moira.MatchedMetric) {
-	if err := matcher.database.SaveMetrics(buffer); err != nil {
+	if err := matcher.database.SaveMetrics(buffer, matcher.metricsTTL); err != nil {
 		matcher.logger.Infof("Failed to save value in cache storage: %s", err.Error())
 	}
 }

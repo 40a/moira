@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gosexy/to"
 	"github.com/moira-alert/moira/cmd"
 )
 
@@ -23,6 +24,8 @@ type filterConfig struct {
 	// Normally, this value must be an order of magnitude less than graphite.prefix.filter.recevied.matching.count | nonNegativeDerivative() | scaleToSeconds(1)
 	// For example: with 100 matching metrics, set cache_capacity to 10. With 1000 matching metrics, increase cache_capacity up to 100.
 	CacheCapacity int `yaml:"cache_capacity"`
+	// Time interval to store metrics. Note: Increasing of this value leads to increasing of Redis memory consumption value
+	MetricsTTL string `yaml:"metrics_ttl"`
 	// Max concurrent metric matchers to run. Equals to the number of processor cores found on Moira host by default or when variable is defined as 0.
 	MaxParallelMatches int `yaml:"max_parallel_matches"`
 }
@@ -43,6 +46,7 @@ func getDefault() config {
 			RetentionConfig:    "/etc/moira/storage-schemas.conf",
 			CacheCapacity:      10,
 			MaxParallelMatches: 0,
+			MetricsTTL:         "1h",
 		},
 		Graphite: cmd.GraphiteConfig{
 			RuntimeStats: false,
@@ -54,4 +58,8 @@ func getDefault() config {
 			Listen: "",
 		},
 	}
+}
+
+func getMetricsTtlSeconds(ttl string) int {
+	return int(to.Duration(ttl).Seconds())
 }
