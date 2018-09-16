@@ -126,7 +126,7 @@ func main() {
 
 	// Start metrics matcher
 	cacheCapacity := config.Filter.CacheCapacity
-	metricsTTL := getMetricsTtlSeconds(config.Filter.MetricsTTL)
+	metricsTTL := getMetricsTTLSeconds(config.Filter.MetricsTTL)
 
 	metricsMatcher := matchedmetrics.NewMetricsMatcher(cacheMetrics, logger, database, cacheStorage, cacheCapacity, metricsTTL)
 	metricsMatcher.Start(metricsChan)

@@ -60,6 +60,6 @@ func getDefault() config {
 	}
 }
 
-func getMetricsTtlSeconds(ttl string) int {
+func getMetricsTTLSeconds(ttl string) int {
 	return int(to.Duration(ttl).Seconds())
 }
