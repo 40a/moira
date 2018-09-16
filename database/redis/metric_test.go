@@ -122,7 +122,7 @@ func TestMetricsStoring(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(actualRet, ShouldEqual, 60)
 
-		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: val1})
+		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: val1}, -1)
 		So(err, ShouldBeNil)
 
 		actualRet, err = dataBase.GetMetricRetention(metric1)
@@ -145,7 +145,7 @@ func TestMetricsStoring(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(actualValues, ShouldResemble, map[string][]*moira.MetricValue{metric1: {}})
 
-		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: val2})
+		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: val2}, -1)
 		So(err, ShouldBeNil)
 
 		actualValues, err = dataBase.GetMetricsValues([]string{metric1}, 0, 9)
@@ -173,7 +173,7 @@ func TestMetricsStoring(t *testing.T) {
 		So(actualValues, ShouldResemble, map[string][]*moira.MetricValue{metric1: {}})
 
 		//Save metric with changed retention
-		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: val3})
+		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: val3}, -1)
 		So(err, ShouldBeNil)
 
 		//But retention still old, because cache
@@ -225,13 +225,13 @@ func TestRemoveMetricValues(t *testing.T) {
 	}
 
 	Convey("Test", t, func() {
-		err := dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: met1})
+		err := dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: met1}, -1)
 		So(err, ShouldBeNil) //Save metric with changed retention
-		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: met2})
+		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: met2}, -1)
 		So(err, ShouldBeNil) //Save metric with changed retention
-		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: met3})
+		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: met3}, -1)
 		So(err, ShouldBeNil) //Save metric with changed retention
-		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: met4})
+		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: met4}, -1)
 		So(err, ShouldBeNil)
 
 		actualValues, err := dataBase.GetMetricsValues([]string{metric1}, 1, 99)
@@ -391,8 +391,8 @@ func TestMetricSubscription(t *testing.T) {
 			}
 		})
 
-		dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: met1})
-		dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric2: met2})
+		dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric1: met1}, -1)
+		dataBase.SaveMetrics(map[string]*moira.MatchedMetric{metric2: met2}, -1)
 		tomb1.Kill(nil)
 		tomb1.Wait()
 
@@ -414,7 +414,7 @@ func TestMetricsStoringErrorConnection(t *testing.T) {
 		So(actual1, ShouldBeEmpty)
 		So(err, ShouldNotBeNil)
 
-		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{"metric1": {Value: 1, RetentionTimestamp: 1, Timestamp: 1, Retention: 60, Patterns: []string{"12"}, Metric: "123"}})
+		err = dataBase.SaveMetrics(map[string]*moira.MatchedMetric{"metric1": {Value: 1, RetentionTimestamp: 1, Timestamp: 1, Retention: 60, Patterns: []string{"12"}, Metric: "123"}}, -1)
 		So(err, ShouldNotBeNil)
 
 		actual2, err := dataBase.GetMetricRetention("123")
