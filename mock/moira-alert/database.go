@@ -878,15 +878,15 @@ func (mr *MockDatabaseMockRecorder) SaveContact(arg0 interface{}) *gomock.Call {
 }
 
 // SaveMetrics mocks base method
-func (m *MockDatabase) SaveMetrics(arg0 map[string]*moira.MatchedMetric) error {
-	ret := m.ctrl.Call(m, "SaveMetrics", arg0)
+func (m *MockDatabase) SaveMetrics(arg0 map[string]*moira.MatchedMetric, arg1 int) error {
+	ret := m.ctrl.Call(m, "SaveMetrics", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SaveMetrics indicates an expected call of SaveMetrics
-func (mr *MockDatabaseMockRecorder) SaveMetrics(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMetrics", reflect.TypeOf((*MockDatabase)(nil).SaveMetrics), arg0)
+func (mr *MockDatabaseMockRecorder) SaveMetrics(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMetrics", reflect.TypeOf((*MockDatabase)(nil).SaveMetrics), arg0, arg1)
 }
 
 // SaveSubscription mocks base method
