@@ -97,7 +97,9 @@ func (connector *DbConnector) SaveMetrics(metrics map[string]*moira.MatchedMetri
 	for _, metric := range metrics {
 		metricValue := fmt.Sprintf("%v %v", metric.Timestamp, metric.Value)
 		c.Send("ZADD", metricDataKey(metric.Metric), metric.RetentionTimestamp, metricValue)
-		c.Send("EXPIRE", metricDataKey(metric.Metric), ttl)
+		if ttl > 0 {
+			c.Send("EXPIRE", metricDataKey(metric.Metric), ttl)
+		}
 
 		if err := connector.retentionSavingCache.Add(metric.Metric, true, cache.DefaultExpiration); err == nil {
 			c.Send("SET", metricRetentionKey(metric.Metric), metric.Retention)
